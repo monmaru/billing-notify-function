@@ -20,7 +20,7 @@ function getFileStream (file) {
   return storage.bucket(file.bucket).file(file.name).createReadStream();
 }
 
-function postSlack (fileName, billing) {
+function post2Slack (fileName, billing) {
   const fields = _.map(billing, (v) => {
     return {
       title: `${v.projectId}: ${v.description}`,
@@ -31,8 +31,8 @@ function postSlack (fileName, billing) {
   const requestBody = {
     username: BOT_NAME,
     pretext: fileName.match(/billing-(.*).json/)[1] + 'の請求書',
-    color: "#36a64f",
-    fields: fields,
+    color: '#36a64f',
+    fields: fields
   }
 
   const params = {
@@ -56,7 +56,7 @@ exports.notifyBillingInfo = function notifyBillingInfo (event) {
       getFileStream(file).on('data', (chunk) => {
         text += chunk;
       }).on('end', () => {
-        return postSlack(file.name, JSON.parse(text));
+        return post2Slack(file.name, JSON.parse(text));
       });
     })
     .then(() => {
