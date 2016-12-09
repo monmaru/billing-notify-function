@@ -1,0 +1,17 @@
+{
+  "name": "billing-notify-function",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./index.js",
+  "author": "",
+  "license": "MIT",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^0.4.0",
+    "lodash": "^4.17.2",
+    "request": "^2.79.0",
+    "request-promise": "^4.1.1"
+  }
+}
