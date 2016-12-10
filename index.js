@@ -33,7 +33,7 @@ function post2Slack (fileName, billing) {
     pretext: fileName.match(/billing-(.*).json/)[1] + 'の請求書',
     color: '#36a64f',
     fields: fields
-  }
+  };
 
   const params = {
     method: 'POST',
@@ -56,7 +56,12 @@ exports.notifyBillingInfo = function notifyBillingInfo (event) {
       getFileStream(file).on('data', (chunk) => {
         text += chunk;
       }).on('end', () => {
-        return post2Slack(file.name, JSON.parse(text));
+        const billing = JSON.parse(text);
+        if (_.isEmpty(billing)) {
+          console.log(`File ${file.name} is empty.`);
+          return;
+        }
+        return post2Slack(file.name, billing);
       });
     })
     .then(() => {
