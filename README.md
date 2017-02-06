@@ -1,2 +1,2 @@
 # billing-notify-function
-Cloud Functionsの練習
+sample of cloud functions
