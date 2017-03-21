@@ -25,7 +25,7 @@ function post2Slack (fileName, billing) {
     return {
       title: `${v.projectId}: ${v.description}`,
       value: `${v.cost.amount}ドル（USD）`
-    }
+    };
   });
 
   const requestBody = {
@@ -44,11 +44,12 @@ function post2Slack (fileName, billing) {
   return rp(params);
 }
 
-exports.notifyBillingInfo = function notifyBillingInfo (event) {
+exports.notifyBillingInfo = (event) => {
   const file = event.data;
   return Promise.resolve()
     .then(() => {
       if (file.resourceState === 'not_exists') {
+        console.log("This is a deletion event.");
         return;
       }
 
@@ -64,11 +65,5 @@ exports.notifyBillingInfo = function notifyBillingInfo (event) {
         return post2Slack(file.name, billing);
       });
     })
-    .then(() => {
-      console.log(`File ${file.name} processed.`);
-    })
-    .catch((err) => {
-      console.error(err);
-      return err;
-    });
+    .then(() => console.log(`File ${file.name} processed.`));
 };
