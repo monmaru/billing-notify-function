@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 	"time"
 
 	"cloud.google.com/go/functions/metadata"
@@ -50,6 +51,7 @@ type Billing struct {
 var (
 	storageClient *storage.Client
 	webhookURL    string
+	regexB        *regexp.Regexp
 )
 
 const botName = "gcp-billing-bot"
@@ -62,6 +64,7 @@ func init() {
 	}
 
 	webhookURL = os.Getenv("WEBHOOK")
+	regexB = regexp.MustCompile(`billing-(.*).json`)
 }
 
 // F sends biling information.
@@ -78,13 +81,14 @@ func F(ctx context.Context, e GCSEvent) error {
 	log.Printf("Created: %v\n", e.TimeCreated)
 	log.Printf("Updated: %v\n", e.Updated)
 
-	r, err := readFromGCS(ctx, e.Bucket, e.Name)
+	rc, err := readFromGCS(ctx, e.Bucket, e.Name)
 	if err != nil {
 		return fmt.Errorf("readFromGCS: %v", err)
 	}
+	defer rc.Close()
 
 	var b []Billing
-	if err := json.NewDecoder(r).Decode(&b); err != nil {
+	if err := json.NewDecoder(rc).Decode(&b); err != nil {
 		return fmt.Errorf("json.NewDecoder: %v", err)
 	}
 
@@ -96,7 +100,7 @@ func F(ctx context.Context, e GCSEvent) error {
 	return webhook(webhookURL, buildMessage(e.Name, b))
 }
 
-func readFromGCS(ctx context.Context, bucket, name string) (io.Reader, error) {
+func readFromGCS(ctx context.Context, bucket, name string) (io.ReadCloser, error) {
 	obj := storageClient.Bucket(bucket).Object(name)
 	return obj.NewReader(ctx)
 }
@@ -113,10 +117,14 @@ func buildMessage(f string, bs []Billing) *Message {
 
 	return &Message{
 		Username: botName,
-		Pretext:  "",
+		Pretext:  fmt.Sprintf("%sの請求書", extractDate(f)),
 		Color:    "#36a64f",
 		Fields:   fields,
 	}
+}
+
+func extractDate(f string) string {
+	return regexB.FindAllStringSubmatch(f, -1)[0][1]
 }
 
 type Field struct {
@@ -149,6 +157,10 @@ func webhook(url string, msg *Message) error {
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := http.DefaultClient.Do(req)
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			log.Printf("resp.Body.Close(): %v", err)
+		}
+	}()
 	return err
 }
