@@ -67,7 +67,7 @@ func init() {
 	regexB = regexp.MustCompile(`billing-(.*).json`)
 }
 
-// F sends biling information.
+// F sends biling information to Slack.
 func F(ctx context.Context, e GCSEvent) error {
 	meta, err := metadata.FromContext(ctx)
 	if err != nil {
@@ -97,12 +97,14 @@ func F(ctx context.Context, e GCSEvent) error {
 		return nil
 	}
 
-	return webhook(webhookURL, buildMessage(e.Name, b))
+	return webhook(ctx, webhookURL, buildMessage(e.Name, b))
 }
 
 func readFromGCS(ctx context.Context, bucket, name string) (io.ReadCloser, error) {
-	obj := storageClient.Bucket(bucket).Object(name)
-	return obj.NewReader(ctx)
+	return storageClient.
+		Bucket(bucket).
+		Object(name).
+		NewReader(ctx)
 }
 
 func buildMessage(f string, bs []Billing) *Message {
@@ -139,8 +141,8 @@ type Message struct {
 	Fields   []Field `json:"fields"`
 }
 
-func webhook(url string, msg *Message) error {
-	buf, err := json.Marshal(msg)
+func webhook(ctx context.Context, url string, msg *Message) error {
+	b, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
@@ -148,7 +150,7 @@ func webhook(url string, msg *Message) error {
 	req, err := http.NewRequest(
 		"POST",
 		url,
-		bytes.NewBuffer(buf),
+		bytes.NewBuffer(b),
 	)
 
 	if err != nil {
@@ -156,7 +158,7 @@ func webhook(url string, msg *Message) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := http.DefaultClient.Do(req.WithContext(ctx))
 	defer func() {
 		if err := resp.Body.Close(); err != nil {
 			log.Printf("resp.Body.Close(): %v", err)
